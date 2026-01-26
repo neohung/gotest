@@ -3,11 +3,10 @@ package layer
 
 import (
 	"container/list"
-	"fmt"
 )
 
 type Renderable interface {
-	Render() string
+	Render(dst [][]rune)
 }
 
 type Layer struct {
@@ -26,11 +25,11 @@ func (l *Layer) Push(e Renderable) {
 	l.ll.PushBack(e)
 }
 
-func (l *Layer) Render() {
+func (l *Layer) Render(dst [][]rune) {
 	// 型別斷言
 	for e := l.ll.Front(); e != nil; e = e.Next() {
 		if v, ok := e.Value.(Renderable); ok {
-			fmt.Printf("%s", v.Render())
+			v.Render(dst)
 		}
 	}
 }
