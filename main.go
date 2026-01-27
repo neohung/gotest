@@ -1,78 +1,139 @@
 package main
 
 import (
-	"fmt"
+	//"fmt"
 	"os"
-	"strings"
+	"time"
+	//"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	// tea "github.com/charmbracelet/bubbletea"
+	//"fmt"
 
-	avatar "test/package/character"
-	layer "test/package/layer"
-	maze "test/package/maze"
+	"test/package/roguelike/framebuffer"
+	"test/package/roguelike/layer"
+	"test/package/roguelike/renderer"
+
+	"github.com/gdamore/tcell/v2"
 )
 
-type MyData struct {
-	context [][]rune
-	l       *layer.Layer
+type Player struct {
+	X, Y int
+	CH   rune
 }
 
-func (m MyData) Init() tea.Cmd {
-	return nil
-}
-
-func (m MyData) Dump() string {
-	var sb strings.Builder
-	for i := range len(m.context) {
-		sb.WriteString(string(m.context[i][:]))
-		sb.WriteByte('\n')
-	}
-	sb.WriteString("Press q to Quit")
-	return sb.String()
-}
-
-func (m MyData) View() string {
-	m.l.Render(m.context)
-	return m.Dump()
-}
-
-func (m MyData) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msgtype := msg.(type) {
-	case tea.KeyMsg:
-		switch msgtype.String() {
-		case "q":
-			return m, tea.Quit
+func PresentFB(screen tcell.Screen, fb *framebuffer.Framebuffer) {
+	for y := 0; y < fb.H; y++ {
+		for x := 0; x < fb.W; x++ {
+			ch := fb.View[y][x]
+			screen.SetContent(x, y, ch, nil, tcell.StyleDefault)
 		}
 	}
-	return m, nil
+	screen.Show()
 }
 
-func initModel() *MyData {
-	width := 20
-	height := 20
-	m := MyData{
-		l:       layer.New(),
-		context: make([][]rune, height),
+func genMap(fb *framebuffer.Framebuffer) {
+	fb.Clear('.')
+	for x := range fb.W {
+		fb.View[0][x] = '#'
+		fb.View[fb.H-1][x] = '#'
 	}
-	tmp := make([]rune, width*height)
-	for i := range m.context {
-		m.context[i] = tmp[i*width : (i+1)*width]
+	for y := range fb.H {
+		fb.View[y][0] = '#'
+		fb.View[y][fb.W-1] = '#'
 	}
-	mymaze := maze.New(uint16(width), uint16(height))
-	mymaze.Maze1()
-	m.l.Push(mymaze)
-
-	a := avatar.Init(5, 5, '@')
-	m.l.Push(a)
-	return &m
 }
 
-// 編譯期檢查
-// var _ Renderable = (*MyData)(nil)
 func main() {
-	p := tea.NewProgram(initModel())
-	if _, err := p.Run(); err != nil {
-		fmt.Println("error occur")
-		os.Exit(1)
+	// 建立screen
+	screen, err := tcell.NewScreen()
+	if err != nil {
+		panic(err)
 	}
+	if err := screen.Init(); err != nil {
+		panic(err)
+	}
+	defer screen.Fini()
+
+	w, h := screen.Size()
+	r := renderer.NewRenderer(w, h)
+
+	mapFB := framebuffer.New(w, h)
+	actorFB := framebuffer.New(w, h)
+	hudFB := framebuffer.New(w, h)
+
+	r.AddLayer(mapFB, 0, layer.BlendCopy)
+	r.AddLayer(actorFB, 1, layer.BlendOr)
+	r.AddLayer(hudFB, 2, layer.BlendOr)
+
+	genMap(mapFB)
+
+	// 初始化後
+	// 將 mapFB 先渲染到 front/back buffer，保證第一 frame 就完整
+	//copyRect(r.front, mapFB, Rect{0, 0, w, h})
+	//`pyRect(r.back, mapFB, Rect{0, 0, w, h})
+
+	player := Player{X: w / 2, Y: h / 2, CH: '@'}
+
+	// 初始 dirty
+	r.MarkDirty(layer.Rect{
+		X: 0,
+		Y: 0,
+		W: w,
+		H: h,
+	})
+
+	screen.EnableMouse()
+loop:
+	for {
+		screen.Clear()
+		ev := screen.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventKey:
+			// 存下player舊座標等等make dirty使用
+			oldX, oldY := player.X, player.Y
+			switch ev.Key() {
+			case tcell.KeyEscape, tcell.KeyCtrlC:
+				break loop
+				// return
+			case tcell.KeyUp:
+				player.Y--
+			case tcell.KeyDown:
+				player.Y++
+			case tcell.KeyLeft:
+				player.X--
+			case tcell.KeyRight:
+				player.X++
+			}
+
+			r.MarkDirty(layer.Rect{X: oldX, Y: oldY, W: 1, H: 1})
+			r.MarkDirty(layer.Rect{X: player.X, Y: player.Y, W: 1, H: 1})
+		case *tcell.EventResize:
+			w, h = screen.Size()
+			// screen.Sync()
+		}
+		//================================================
+		// Actor
+		actorFB.Clear(' ')
+		actorFB.View[player.Y][player.X] = player.CH
+		//================================================
+		// HUD
+		hudFB.Clear(' ')
+		msg := "Move: Arrow / WASD | ESC quit"
+		for i, ch := range msg {
+			hudFB.View[h-1][i] = ch
+		}
+		r.MarkDirty(layer.Rect{
+			X: 0,
+			Y: h - 1,
+			W: w,
+			H: 1,
+		})
+		//================================================
+		r.Render()
+		// render完後, 取出front framebuffer, present到screen
+		PresentFB(screen, r.Front())
+		time.Sleep(16 * time.Millisecond)
+	}
+	screen.Fini()
+	os.Exit(0)
 }
