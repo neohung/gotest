@@ -36,21 +36,19 @@ func main() {
 	}
 	w, h := screen.Size()
 	// fmt.Printf("%d,%d\r\n", w, h)
-	f1 := framebuffer.New(20, h-2)
+	f1 := framebuffer.New(w, h-2)
 	f1.Clear('.')
 
-	f2 := framebuffer.New(20, h-2)
+	f2 := framebuffer.New(w, h-2)
 	f2.Clear(' ')
-	p := Player{5, 5, '@'}
+	p := Player{w / 2, h / 2, '@'}
 	f2.View[p.Y][p.X] = p.CH
 	r := renderer.New(w, h)
 	r.AddLayer(f1, 1, layer.BlendCopy)
-	r.AddLayer(f2, 2, layer.BlendCopy)
+	r.AddLayer(f2, 2, layer.BlendOr)
 	// Mark once for first init
-	r.MarkDirty(layer.Rect{0, 0, w, h})
-	r.Render()
-	r.MarkDirty(layer.Rect{0, 0, w, h})
-	r.Render()
+	r.MarkDirty(layer.Rect{X: 0, Y: 0, W: w, H: h})
+
 	defer screen.Fini()
 	screen.Clear()
 	// screen.EnableMouse()
@@ -70,65 +68,49 @@ loop:
 			}
 			switch ev := ev.(type) {
 			case *tcell.EventKey:
+				oldX = p.X
+				oldY = p.Y
 				switch ev.Key() {
 				case tcell.KeyEsc:
 					break loop
 				case tcell.KeyEnter:
-					// r.MarkDirty(layer.Rect{0, 0, w, h})
-					// screen.Clear()
-					// PresentFB(screen, r.Front)
+					r.ClearDirty()
 					// time.Sleep(3000 * time.Millisecond)
-					screen.Clear()
-					// PresentFB(screen, r.Back)
-					PresentFB(screen, f2)
-					time.Sleep(3000 * time.Millisecond)
 				case tcell.KeyUp:
-					oldX = p.X
-					oldY = p.Y
 					// f2.Clear(' ')
 					f2.View[oldY][oldX] = ' '
-					r.MarkDirty(layer.Rect{oldX, oldY, 1, 1})
+					r.MarkDirty(layer.Rect{X: oldX, Y: oldY, W: 1, H: 1})
 					p.Y--
 					f2.View[p.Y][p.X] = p.CH
-					r.MarkDirty(layer.Rect{p.X, p.Y, 1, 1})
-					r.Render()
+					r.MarkDirty(layer.Rect{X: p.X, Y: p.Y, W: 1, H: 1})
 				case tcell.KeyDown:
-					oldX = p.X
-					oldY = p.Y
 					// f2.Clear(' ')
 					f2.View[oldY][oldX] = ' '
-					r.MarkDirty(layer.Rect{oldX, oldY, 1, 1})
+					r.MarkDirty(layer.Rect{X: oldX, Y: oldY, W: 1, H: 1})
 					p.Y++
-					r.MarkDirty(layer.Rect{p.X, p.Y, 1, 1})
+					r.MarkDirty(layer.Rect{X: p.X, Y: p.Y, W: 1, H: 1})
 					f2.View[p.Y][p.X] = p.CH
-					r.Render()
 				case tcell.KeyLeft:
-					oldX = p.X
-					oldY = p.Y
 					// f2.Clear(' ')
 					f2.View[oldY][oldX] = ' '
-					r.MarkDirty(layer.Rect{oldX, oldY, 1, 1})
+					r.MarkDirty(layer.Rect{X: oldX, Y: oldY, W: 1, H: 1})
 					p.X--
-					r.MarkDirty(layer.Rect{p.X, p.Y, 1, 1})
+					r.MarkDirty(layer.Rect{X: p.X, Y: p.Y, W: 1, H: 1})
 					f2.View[p.Y][p.X] = p.CH
-					r.Render()
 				case tcell.KeyRight:
-					oldX = p.X
-					oldY = p.Y
 					// f2.Clear(' ')
 					f2.View[oldY][oldX] = ' '
-					r.MarkDirty(layer.Rect{oldX, oldY, 1, 1})
+					r.MarkDirty(layer.Rect{X: oldX, Y: oldY, W: 1, H: 1})
 					p.X++
 					f2.View[p.Y][p.X] = p.CH
-					r.MarkDirty(layer.Rect{p.X, p.Y, 1, 1})
-					r.Render()
+					r.MarkDirty(layer.Rect{X: p.X, Y: p.Y, W: 1, H: 1})
 				}
 			}
 		default:
 			// fps60 task here
-			// fmt.Print("aaa")
+			r.Render()
 			PresentFB(screen, r.OutputFront())
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(16 * time.Millisecond)
 	}
 }
