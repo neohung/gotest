@@ -1,50 +1,31 @@
+// Package main
 package main
 
 import (
-	//"fmt"
-	"os"
-	"time"
-	//"strings"
+	"fmt"
 
-	// tea "github.com/charmbracelet/bubbletea"
-	//"fmt"
-
-	"test/package/roguelike/framebuffer"
-	"test/package/roguelike/layer"
-	"test/package/roguelike/renderer"
+	"test2/package/framebuffer"
+	"test2/package/layer"
+	"test2/package/renderer"
 
 	"github.com/gdamore/tcell/v2"
 )
+
+func PresentFB(s tcell.Screen, fb *framebuffer.Framebuffer) {
+	for y := range fb.H {
+		for x := range fb.W {
+			s.SetContent(x, y, fb.View[y][x], nil, tcell.StyleDefault)
+		}
+	}
+	s.Show()
+}
 
 type Player struct {
 	X, Y int
 	CH   rune
 }
 
-func PresentFB(screen tcell.Screen, fb *framebuffer.Framebuffer) {
-	for y := 0; y < fb.H; y++ {
-		for x := 0; x < fb.W; x++ {
-			ch := fb.View[y][x]
-			screen.SetContent(x, y, ch, nil, tcell.StyleDefault)
-		}
-	}
-	screen.Show()
-}
-
-func genMap(fb *framebuffer.Framebuffer) {
-	fb.Clear('.')
-	for x := range fb.W {
-		fb.View[0][x] = '#'
-		fb.View[fb.H-1][x] = '#'
-	}
-	for y := range fb.H {
-		fb.View[y][0] = '#'
-		fb.View[y][fb.W-1] = '#'
-	}
-}
-
 func main() {
-	// 建立screen
 	screen, err := tcell.NewScreen()
 	if err != nil {
 		panic(err)
@@ -52,88 +33,34 @@ func main() {
 	if err := screen.Init(); err != nil {
 		panic(err)
 	}
-	defer screen.Fini()
-
 	w, h := screen.Size()
-	r := renderer.NewRenderer(w, h)
+	fmt.Printf("%d,%d\r\n", w, h)
+	f1 := framebuffer.New(20, h-2)
+	f1.Clear('.')
 
-	mapFB := framebuffer.New(w, h)
-	actorFB := framebuffer.New(w, h)
-	hudFB := framebuffer.New(w, h)
+	f2 := framebuffer.New(20, h-2)
+	f2.Clear(' ')
+	p := Player{5, 5, '@'}
+	f2.View[p.Y][p.X] = p.CH
+	r := renderer.New(w, h)
+	r.AddLayer(f1, 1, layer.BlendCopy)
+	r.AddLayer(f2, 2, layer.BlendOr)
 
-	r.AddLayer(mapFB, 0, layer.BlendCopy)
-	r.AddLayer(actorFB, 1, layer.BlendOr)
-	r.AddLayer(hudFB, 2, layer.BlendOr)
-
-	genMap(mapFB)
-
-	// 初始化後
-	// 將 mapFB 先渲染到 front/back buffer，保證第一 frame 就完整
-	//copyRect(r.front, mapFB, Rect{0, 0, w, h})
-	//`pyRect(r.back, mapFB, Rect{0, 0, w, h})
-
-	player := Player{X: w / 2, Y: h / 2, CH: '@'}
-
-	// 初始 dirty
-	r.MarkDirty(layer.Rect{
-		X: 0,
-		Y: 0,
-		W: w,
-		H: h,
-	})
-
-	screen.EnableMouse()
+	defer screen.Fini()
+	screen.Clear()
 loop:
 	for {
-		screen.Clear()
 		ev := screen.PollEvent()
 		switch ev := ev.(type) {
 		case *tcell.EventKey:
-			// 存下player舊座標等等make dirty使用
-			oldX, oldY := player.X, player.Y
 			switch ev.Key() {
-			case tcell.KeyEscape, tcell.KeyCtrlC:
+			case tcell.KeyEsc:
 				break loop
-				// return
-			case tcell.KeyUp:
-				player.Y--
-			case tcell.KeyDown:
-				player.Y++
-			case tcell.KeyLeft:
-				player.X--
-			case tcell.KeyRight:
-				player.X++
+			case tcell.KeyEnter:
+				r.MarkDirty(layer.Rect{0, 0, w, h})
+				r.Render()
+				PresentFB(screen, r.OutputFront())
 			}
-
-			r.MarkDirty(layer.Rect{X: oldX, Y: oldY, W: 1, H: 1})
-			r.MarkDirty(layer.Rect{X: player.X, Y: player.Y, W: 1, H: 1})
-		case *tcell.EventResize:
-			w, h = screen.Size()
-			// screen.Sync()
 		}
-		//================================================
-		// Actor
-		actorFB.Clear(' ')
-		actorFB.View[player.Y][player.X] = player.CH
-		//================================================
-		// HUD
-		hudFB.Clear(' ')
-		msg := "Move: Arrow / WASD | ESC quit"
-		for i, ch := range msg {
-			hudFB.View[h-1][i] = ch
-		}
-		r.MarkDirty(layer.Rect{
-			X: 0,
-			Y: h - 1,
-			W: w,
-			H: 1,
-		})
-		//================================================
-		r.Render()
-		// render完後, 取出front framebuffer, present到screen
-		PresentFB(screen, r.Front())
-		time.Sleep(16 * time.Millisecond)
 	}
-	screen.Fini()
-	os.Exit(0)
 }
