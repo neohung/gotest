@@ -72,17 +72,19 @@ func blendCopyRect(dst *framebuffer.Framebuffer, src *framebuffer.Framebuffer, r
 func (r *Renderer) Render() {
 	// back <- Front
 	for _, d := range r.Dirty {
+		// fmt.Printf("(%d)%d,%d,%d,%d\r\n", i, d.X, d.Y, d.W, d.H)
 		copyRect(r.Back, r.Front, d)
 	}
 	// copy Layers
 	for _, l := range r.L {
 		for _, d := range r.Dirty {
-			// copyRect(r.Back, l.FB, d)
 			blendCopyRect(r.Back, l.FB, d, l.Blend)
 		}
 	}
 	// swap
 	r.Back, r.Front = r.Front, r.Back
+	// ClearDirty
+	r.ClearDirty()
 }
 
 func (r Renderer) OutputFront() *framebuffer.Framebuffer {
