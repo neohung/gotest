@@ -82,7 +82,7 @@ func main() {
 loop:
 	for {
 		oldCamX, oldCamY := myWorld.Cam.X, myWorld.Cam.Y
-		// var oldX, oldY int
+		var oldX, oldY int
 		select {
 		case ev := <-eventChan:
 			if ev == nil {
@@ -99,25 +99,36 @@ loop:
 					r.ClearDirty()
 					// time.Sleep(3000 * time.Millisecond)
 				case tcell.KeyUp:
+					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 					p.Y--
+					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyDown:
+					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 					p.Y++
+					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyLeft:
+					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 					p.X--
+					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyRight:
+					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 					p.X++
+					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				}
 			}
 		default:
 			// fps60 task here
 			myWorld.Cam.Follow(p.X, p.Y, myWorld.W, myWorld.H)
+
 			if myWorld.Cam.X != oldCamX || myWorld.Cam.Y != oldCamY {
 				myWorld.RenderToMapFB(mapFB)
 				r.MarkDirty(layer.Rect{X: 0, Y: 0, W: myWorld.Cam.W, H: myWorld.Cam.H})
 				// DrawHUDLine(hudFB, hudFB.H-1, fmt.Sprintf("%d,%d,%d,%d,%d,%d", p.X, p.Y, myWorld.Cam.X, myWorld.Cam.Y, oldCamX, oldCamY))
 				// r.MarkDirty(layer.Rect{X: 0, Y: hudFB.H - 1, W: hudFB.W, H: 1})
 			}
-			DrawHUDLine(hudFB, hudFB.H-1, fmt.Sprintf("%d,%d,%d,%d,%d,%d", p.X, p.Y, myWorld.Cam.X, myWorld.Cam.Y, oldCamX, oldCamY))
+
+			p.RenderPlayer(&myWorld.Cam, actorFB)
+			DrawHUDLine(hudFB, hudFB.H-1, fmt.Sprintf("%d,%d,%d,%d,%d,%d", p.X, p.Y, myWorld.Cam.X, myWorld.Cam.Y, oldX, oldY))
 			r.MarkDirty(layer.Rect{X: 0, Y: hudFB.H - 1, W: hudFB.W, H: 1})
 			r.Render()
 			PresentFB(screen, r.OutputFront())
