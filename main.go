@@ -100,19 +100,19 @@ loop:
 					// time.Sleep(3000 * time.Millisecond)
 				case tcell.KeyUp:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
-					p.Y--
+					p.CanMove(p.X, p.Y-1, myWorld)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyDown:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
-					p.Y++
+					p.CanMove(p.X, p.Y+1, myWorld)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyLeft:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
-					p.X--
+					p.CanMove(p.X-1, p.Y, myWorld)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyRight:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
-					p.X++
+					p.CanMove(p.X+1, p.Y, myWorld)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				}
 			}

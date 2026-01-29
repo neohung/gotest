@@ -11,6 +11,16 @@ type Player struct {
 	CH   rune
 }
 
+func (p *Player) CanMove(newX, newY int, w *world.World) {
+	if newX < 0 || newX > w.W-1 || newY < 0 || newY > w.H-1 {
+		return
+	}
+	if w.Tiles[newY][newX] == rune(world.Wall) {
+		return
+	}
+	p.X, p.Y = newX, newY
+}
+
 func (p *Player) RenderPlayer(cam *world.Camera, fb *framebuffer.Framebuffer) {
 	fb.Clear(' ')
 
