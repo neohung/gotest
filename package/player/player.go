@@ -9,6 +9,7 @@ import (
 type Player struct {
 	X, Y int
 	CH   rune
+	FOV  int
 }
 
 func (p *Player) CanMove(newX, newY int, w *world.World) {

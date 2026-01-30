@@ -8,26 +8,34 @@ import (
 )
 
 type World struct {
-	W, H  int
-	Tiles [][]rune
-	Cam   Camera
+	W, H    int
+	Tiles   [][]rune
+	Cam     Camera
+	Visible [][]bool // 本回合可見
+	Seen    [][]bool // 曾經看過（fog of war）
 }
 
 func New(w, h int, c Camera) *World {
 	world := make([]rune, w*h)
 	tiles := make([][]rune, h)
+	vis := make([][]bool, h)
+	seen := make([][]bool, h)
 	for y := range h {
 		tiles[y] = world[y*w : (y+1)*w]
+		vis[y] = make([]bool, w)
+		seen[y] = make([]bool, w)
 		for x := range w {
 			// tiles[y][x] = '.'
 			tiles[y][x] = rune(Wall)
 		}
 	}
 	return &World{
-		W:     w,
-		H:     h,
-		Tiles: tiles,
-		Cam:   c,
+		W:       w,
+		H:       h,
+		Tiles:   tiles,
+		Cam:     c,
+		Visible: vis,
+		Seen:    seen,
 	}
 }
 
@@ -93,8 +101,87 @@ func (w *World) RenderToMapFB(fb *framebuffer.Framebuffer) {
 			if wx < 0 || wx >= w.W {
 				continue
 			}
+			ch := ' ' // 看不到顯示空格
 			// Render world tile到mapFB
-			fb.View[sy][sx] = w.Tiles[wy][wx]
+			if w.Visible[wy][wx] {
+				ch = w.Tiles[wy][wx]
+			} else if w.Seen[wy][wx] {
+				ch = rune(Floor)
+			}
+			fb.View[sy][sx] = ch
+		}
+	}
+}
+
+func (w *World) BlocksSight(x, y int) bool {
+	if x < 0 || y < 0 || x >= w.W || y >= w.H {
+		return true
+	}
+	return w.Tiles[y][x] == rune(Wall)
+}
+
+func absInt(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func Bresenham(x0, y0, x1, y1 int, fn func(x, y int) bool) {
+	dx := absInt(x1 - x0)
+	dy := -absInt(y1 - y0)
+	sx, sy := 1, 1
+	if x0 > x1 {
+		sx = -1
+	}
+	if y0 > y1 {
+		sy = -1
+	}
+	err := dx + dy
+
+	for {
+		if !fn(x0, y0) {
+			return
+		}
+		if x0 == x1 && y0 == y1 {
+			return
+		}
+		e2 := 2 * err
+		if e2 >= dy {
+			err += dy
+			x0 += sx
+		}
+		if e2 <= dx {
+			err += dx
+			y0 += sy
+		}
+	}
+}
+
+func (w *World) ComputeFOV(px, py int, radius int) {
+	// 清空可見 重新計算
+	for y := 0; y < w.H; y++ {
+		for x := 0; x < w.W; x++ {
+			w.Visible[y][x] = false
+		}
+	}
+	for dy := -radius; dy <= radius; dy++ {
+		for dx := -radius; dx <= radius; dx++ {
+			tx := px + dx
+			ty := py + dy
+
+			if dx*dx+dy*dy > radius*radius {
+				continue
+			}
+
+			Bresenham(px, py, tx, ty, func(x, y int) bool {
+				if x < 0 || y < 0 || x >= w.W || y >= w.H {
+					return false
+				}
+				w.Visible[y][x] = true
+				w.Seen[y][x] = true
+				return !w.BlocksSight(x, y)
+			})
 		}
 	}
 }

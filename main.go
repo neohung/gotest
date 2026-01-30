@@ -56,8 +56,9 @@ func main() {
 
 	actorFB := framebuffer.New(camW, camH)
 	actorFB.Clear(' ')
-	p := player.Player{X: px, Y: py, CH: '@'}
+	p := player.Player{X: px, Y: py, FOV: 10, CH: '@'}
 	myWorld.Cam.Follow(p.X, p.Y, myWorld.W, myWorld.H)
+	myWorld.ComputeFOV(p.X, p.Y, p.FOV)
 	myWorld.RenderToMapFB(mapFB)
 	p.RenderPlayer(&myWorld.Cam, actorFB)
 
@@ -101,18 +102,22 @@ loop:
 				case tcell.KeyUp:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 					p.CanMove(p.X, p.Y-1, myWorld)
+					myWorld.ComputeFOV(p.X, p.Y, p.FOV)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyDown:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 					p.CanMove(p.X, p.Y+1, myWorld)
+					myWorld.ComputeFOV(p.X, p.Y, p.FOV)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyLeft:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 					p.CanMove(p.X-1, p.Y, myWorld)
+					myWorld.ComputeFOV(p.X, p.Y, p.FOV)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyRight:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 					p.CanMove(p.X+1, p.Y, myWorld)
+					myWorld.ComputeFOV(p.X, p.Y, p.FOV)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				}
 			}
