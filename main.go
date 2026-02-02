@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"test2/package/actor"
 	"test2/package/framebuffer"
+	"test2/package/game"
 	"test2/package/layer"
-	"test2/package/player"
+	//"test2/package/player"
 	"test2/package/renderer"
 	"test2/package/world"
 
@@ -49,18 +51,34 @@ func main() {
 	}
 	w, h := screen.Size()
 	// fmt.Printf("%d,%d\r\n", w, h)
+	// 生成world, 生成cam, 計算player合適的spawn位置跟cam follow
 	myWorld := world.New(100, 100, world.Camera{10, 10, camW, camH})
 	myWorld.GenerateMap()
 	px, py := myWorld.FindSpawn()
-	mapFB := framebuffer.New(camW, camH)
+	// 生成player
+	p := actor.Actor{
+		ID:    1,
+		X:     px,
+		Y:     py,
+		CH:    '@',
+		FOV:   10,
+		HP:    100,
+		MaxHP: 100,
+		Alive: true,
+	}
+	// p := player.Player{X: px, Y: py, FOV: 10, CH: '@'}
+	myWorld.Cam.Follow(p.X, p.Y, myWorld.W, myWorld.H)
+	// 計算視野
+	myWorld.ComputeFOV(p.X, p.Y, p.FOV)
+	// 生成game
+	g := game.New(myWorld, &p)
 
+	// 生成Render相關layer
+	mapFB := framebuffer.New(camW, camH)
 	actorFB := framebuffer.New(camW, camH)
 	actorFB.Clear(' ')
-	p := player.Player{X: px, Y: py, FOV: 10, CH: '@'}
-	myWorld.Cam.Follow(p.X, p.Y, myWorld.W, myWorld.H)
-	myWorld.ComputeFOV(p.X, p.Y, p.FOV)
 	myWorld.RenderToMapFB(mapFB)
-	p.RenderPlayer(&myWorld.Cam, actorFB)
+	actor.RenderPlayer(actorFB, &p, myWorld)
 
 	hudFB := framebuffer.New(w, h-2)
 
@@ -80,8 +98,10 @@ func main() {
 			eventChan <- screen.PollEvent()
 		}
 	}()
+	cnt := 0
 loop:
 	for {
+		// cnt++
 		oldCamX, oldCamY := myWorld.Cam.X, myWorld.Cam.Y
 		var oldX, oldY int
 		select {
@@ -101,26 +121,28 @@ loop:
 					// time.Sleep(3000 * time.Millisecond)
 				case tcell.KeyUp:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
-					p.CanMove(p.X, p.Y-1, myWorld)
+					g.TryMove(&p, p.X, p.Y-1)
 					myWorld.ComputeFOV(p.X, p.Y, p.FOV)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyDown:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
-					p.CanMove(p.X, p.Y+1, myWorld)
+					g.TryMove(&p, p.X, p.Y+1)
 					myWorld.ComputeFOV(p.X, p.Y, p.FOV)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyLeft:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
-					p.CanMove(p.X-1, p.Y, myWorld)
+					g.TryMove(&p, p.X-1, p.Y)
 					myWorld.ComputeFOV(p.X, p.Y, p.FOV)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				case tcell.KeyRight:
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
-					p.CanMove(p.X+1, p.Y, myWorld)
+					g.TryMove(&p, p.X+1, p.Y)
 					myWorld.ComputeFOV(p.X, p.Y, p.FOV)
 					r.MarkDirty(layer.Rect{X: p.X - myWorld.Cam.X, Y: p.Y - myWorld.Cam.Y, W: 1, H: 1})
 				}
 			}
+			cnt++
+			g.Update()
 		default:
 			// fps60 task here
 			myWorld.Cam.Follow(p.X, p.Y, myWorld.W, myWorld.H)
@@ -132,8 +154,9 @@ loop:
 				// r.MarkDirty(layer.Rect{X: 0, Y: hudFB.H - 1, W: hudFB.W, H: 1})
 			}
 
-			p.RenderPlayer(&myWorld.Cam, actorFB)
-			DrawHUDLine(hudFB, hudFB.H-1, fmt.Sprintf("%d,%d,%d,%d,%d,%d", p.X, p.Y, myWorld.Cam.X, myWorld.Cam.Y, oldX, oldY))
+			actor.RenderActorsLayer(actorFB, g.Actors, myWorld)
+			actor.RenderPlayer(actorFB, &p, myWorld)
+			DrawHUDLine(hudFB, hudFB.H-1, fmt.Sprintf("[%d]%d,%d,%d,%d,%d,%d", cnt, p.X, p.Y, myWorld.Cam.X, myWorld.Cam.Y, oldX, oldY))
 			r.MarkDirty(layer.Rect{X: 0, Y: hudFB.H - 1, W: hudFB.W, H: 1})
 			r.Render()
 			PresentFB(screen, r.OutputFront())

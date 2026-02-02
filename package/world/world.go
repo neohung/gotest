@@ -10,6 +10,7 @@ import (
 type World struct {
 	W, H    int
 	Tiles   [][]rune
+	Blocked [][]bool
 	Cam     Camera
 	Visible [][]bool // 本回合可見
 	Seen    [][]bool // 曾經看過（fog of war）
@@ -20,19 +21,23 @@ func New(w, h int, c Camera) *World {
 	tiles := make([][]rune, h)
 	vis := make([][]bool, h)
 	seen := make([][]bool, h)
+	blocked := make([][]bool, h)
 	for y := range h {
 		tiles[y] = world[y*w : (y+1)*w]
 		vis[y] = make([]bool, w)
 		seen[y] = make([]bool, w)
+		blocked[y] = make([]bool, w)
 		for x := range w {
 			// tiles[y][x] = '.'
 			tiles[y][x] = rune(Wall)
+			blocked[y][x] = (tiles[y][x] == rune(Wall))
 		}
 	}
 	return &World{
 		W:       w,
 		H:       h,
 		Tiles:   tiles,
+		Blocked: blocked,
 		Cam:     c,
 		Visible: vis,
 		Seen:    seen,
@@ -44,6 +49,7 @@ func (w *World) FindSpawn() (x, y int) {
 		for x = 0; x < w.W; x++ {
 			if w.Tiles[y][x] == rune(SpawnPoint) {
 				w.Tiles[y][x] = rune(Floor) // 清掉標記
+				w.Blocked[y][x] = (w.Tiles[y][x] == rune(Wall))
 				return
 			}
 		}
@@ -111,6 +117,14 @@ func (w *World) RenderToMapFB(fb *framebuffer.Framebuffer) {
 			fb.View[sy][sx] = ch
 		}
 	}
+}
+
+func (w *World) IsBlocked(x, y int) bool {
+	if x < 0 || y < 0 || x >= w.W || y >= w.H {
+		// boundary is blocked
+		return true
+	}
+	return w.Blocked[y][x]
 }
 
 func (w *World) BlocksSight(x, y int) bool {

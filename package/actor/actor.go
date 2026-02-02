@@ -2,9 +2,10 @@
 package actor
 
 import (
-	"github.com/gdamore/tcell/v2"
 	"test2/package/framebuffer"
 	"test2/package/world"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 type (
@@ -19,6 +20,24 @@ const (
 	ActorNPC
 	ActorItem
 )
+
+// ===============================
+// Action
+type ActionType int
+
+const (
+	ActionMove ActionType = iota
+	ActionAttack
+	ActionPickup
+)
+
+type Action struct {
+	Type   ActionType
+	DX, DY int
+	Target *Actor
+}
+
+//===================================
 
 type AIController interface {
 	Update(a *Actor, w *world.World)
@@ -46,6 +65,17 @@ type Actor struct {
 
 	// ---- State flags ----
 	Alive bool
+
+	FOV int
+}
+
+func RenderPlayer(fb *framebuffer.Framebuffer, player *Actor, w *world.World) {
+	sx := player.X - w.Cam.X
+	sy := player.Y - w.Cam.Y
+
+	if sx >= 0 && sx < w.Cam.W && sy >= 0 && sy < w.Cam.H {
+		fb.View[sy][sx] = player.CH
+	}
 }
 
 // RenderActorsLayer render to actorFB

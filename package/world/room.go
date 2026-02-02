@@ -24,6 +24,7 @@ func CarveRoom(w *World, r Room) {
 	for y := r.Y; y < r.Y+r.H; y++ {
 		for x := r.X; x < r.X+r.W; x++ {
 			w.Tiles[y][x] = rune(Floor)
+			w.Blocked[y][x] = (w.Tiles[y][x] == rune(Wall))
 		}
 	}
 }
@@ -34,6 +35,7 @@ func carveHCarridor(w *World, x1, x2, y int) {
 	}
 	for x := x1; x <= x2; x++ {
 		w.Tiles[y][x] = rune(Floor)
+		w.Blocked[y][x] = (w.Tiles[y][x] == rune(Wall))
 	}
 }
 
@@ -43,6 +45,7 @@ func carveVCarridor(w *World, y1, y2, x int) {
 	}
 	for y := y1; y <= y2; y++ {
 		w.Tiles[y][x] = rune(Floor)
+		w.Blocked[y][x] = (w.Tiles[y][x] == rune(Wall))
 	}
 }
 
@@ -67,6 +70,7 @@ func SprinkleNature(w *World) {
 					w.Tiles[y][x] = rune(Grass)
 				} else if glassORwater < 0.08 {
 					w.Tiles[y][x] = rune(Water)
+					w.Blocked[y][x] = (w.Tiles[y][x] == rune(Water))
 				}
 			}
 		}
